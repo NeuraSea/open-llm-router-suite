@@ -181,8 +181,10 @@ run_nginx_syntax() {
     cat >"$TMP_DIR/nginx-main.conf" <<EOF
 worker_processes 1;
 pid $TMP_DIR/nginx.pid;
+error_log $TMP_DIR/error.log;
 events { worker_connections 1024; }
 http {
+    access_log $TMP_DIR/access.log;
     include $TMP_DIR/router-local.conf;
 }
 EOF
