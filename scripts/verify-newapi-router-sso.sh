@@ -177,6 +177,8 @@ run_nginx_syntax() {
       -e "s/server app:8000;/server 127.0.0.1:8000;/" \
       -e "s/server new-api:3000;/server 127.0.0.1:3000;/" \
       -e "s#proxy_pass http://librechat:3080/#proxy_pass http://127.0.0.1:3080/#" \
+      -e "s/listen 80;/listen 8080;/" \
+      -e "s/listen 443 ssl;/listen 8443 ssl;/" \
       "$TMP_DIR/router.conf" >"$TMP_DIR/router-local.conf"
     cat >"$TMP_DIR/nginx-main.conf" <<EOF
 worker_processes 1;
