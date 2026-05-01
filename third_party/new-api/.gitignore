@@ -29,6 +29,8 @@ plans
 electron/node_modules
 electron/dist
 data/
+!web/default/src/features/usage-logs/data/
+!web/default/src/features/usage-logs/data/schema.ts
 .gomodcache/
 .gocache-temp
 .gopath
