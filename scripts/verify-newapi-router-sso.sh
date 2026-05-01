@@ -180,6 +180,7 @@ run_nginx_syntax() {
       "$TMP_DIR/router.conf" >"$TMP_DIR/router-local.conf"
     cat >"$TMP_DIR/nginx-main.conf" <<EOF
 worker_processes 1;
+pid $TMP_DIR/nginx.pid;
 events { worker_connections 1024; }
 http {
     include $TMP_DIR/router-local.conf;
