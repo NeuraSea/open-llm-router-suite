@@ -225,6 +225,7 @@ def test_cli_codex_import_uses_env_defaults(monkeypatch: pytest.MonkeyPatch, cap
     monkeypatch.setenv("ENTERPRISE_LLM_PROXY_API_KEY", "elp_platform_key")
     monkeypatch.setenv("ENTERPRISE_LLM_PROXY_CA_BUNDLE", "/tmp/router-local-ca.crt")
     monkeypatch.setattr(cli, "CodexCliImporter", lambda codex_bin="codex": FakeImporter())
+    monkeypatch.setattr(cli.shutil, "which", lambda name: f"/usr/bin/{name}")
 
     exit_code = cli.main(["codex", "import"])
 
