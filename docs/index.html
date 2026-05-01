@@ -464,6 +464,14 @@
         padding: 24px;
       }
 
+      .cta-actions {
+        display: flex;
+        flex: 0 0 auto;
+        flex-wrap: wrap;
+        gap: 12px;
+        justify-content: flex-end;
+      }
+
       .cta-band p {
         max-width: 700px;
         margin-top: 8px;
@@ -554,6 +562,11 @@
         .tag {
           margin-top: 8px;
         }
+
+        .cta-actions {
+          width: 100%;
+          justify-content: flex-start;
+        }
       }
     </style>
   </head>
@@ -568,6 +581,7 @@
           <a href="#contribution">贡献</a>
           <a href="#principle">原理</a>
           <a href="#stack">开源栈</a>
+          <a href="https://github.com/NeuraSea/open-llm-router-suite" rel="noopener noreferrer">GitHub Repo</a>
           <a class="button" href="https://ai.neurasea.com" rel="noopener noreferrer">API 中转站</a>
         </div>
       </div>
@@ -584,6 +598,7 @@
           </p>
           <div class="hero-actions">
             <a class="button" href="https://ai.neurasea.com" rel="noopener noreferrer">打开 API 中转站</a>
+            <a class="button secondary" href="https://github.com/NeuraSea/open-llm-router-suite" rel="noopener noreferrer">查看 GitHub Repo</a>
             <a class="button secondary" href="#contribution">看我们做了什么</a>
           </div>
           <p class="fine-print">
@@ -755,7 +770,10 @@
               nginx、Docker Compose 和真实上游 smoke 脚本。
             </p>
           </div>
-          <a class="button" href="https://ai.neurasea.com" rel="noopener noreferrer">https://ai.neurasea.com</a>
+          <div class="cta-actions">
+            <a class="button secondary" href="https://github.com/NeuraSea/open-llm-router-suite" rel="noopener noreferrer">GitHub Repo</a>
+            <a class="button" href="https://ai.neurasea.com" rel="noopener noreferrer">https://ai.neurasea.com</a>
+          </div>
         </div>
       </section>
     </main>
