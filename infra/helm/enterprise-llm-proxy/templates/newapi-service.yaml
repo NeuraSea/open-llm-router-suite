@@ -1,0 +1,18 @@
+{{- if .Values.newApi.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "enterprise-llm-proxy.fullname" . }}-new-api
+  labels:
+    {{- include "enterprise-llm-proxy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: new-api
+spec:
+  type: {{ .Values.newApi.service.type }}
+  selector:
+    {{- include "enterprise-llm-proxy.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: new-api
+  ports:
+    - name: http
+      port: {{ .Values.newApi.service.port }}
+      targetPort: http
+{{- end }}

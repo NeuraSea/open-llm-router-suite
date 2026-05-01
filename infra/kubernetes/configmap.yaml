@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: enterprise-llm-proxy-config
+  namespace: enterprise-llm-proxy
+data:
+  ENTERPRISE_LLM_PROXY_ROUTER_PUBLIC_BASE_URL: "https://router.example.com/v1"
+  ENTERPRISE_LLM_PROXY_DEFAULT_CLAUDE_MODEL: "claude-sonnet-4-20250514"
+  ENTERPRISE_LLM_PROXY_DEFAULT_CODEX_MODEL: "openai-codex/gpt-5.4"
+  ENTERPRISE_LLM_PROXY_CODEX_CREDENTIAL_MAX_CONCURRENCY: "16"
+  ENTERPRISE_LLM_PROXY_SQLALCHEMY_ECHO: "false"
+  ENTERPRISE_LLM_PROXY_FEISHU_REDIRECT_URI: "https://router.example.com/auth/oidc/callback"
+  ENTERPRISE_LLM_PROXY_FEISHU_TOKEN_URL: "https://open.feishu.cn/open-apis/authen/v1/access_token"
+  ENTERPRISE_LLM_PROXY_FEISHU_USERINFO_URL: "https://open.feishu.cn/open-apis/authen/v1/user_info"

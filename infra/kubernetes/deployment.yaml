@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: enterprise-llm-proxy
+  namespace: enterprise-llm-proxy
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: enterprise-llm-proxy
+  template:
+    metadata:
+      labels:
+        app: enterprise-llm-proxy
+    spec:
+      serviceAccountName: enterprise-llm-proxy
+      containers:
+        - name: api
+          image: ghcr.io/example/enterprise-llm-proxy:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: enterprise-llm-proxy-config
+            - secretRef:
+                name: enterprise-llm-proxy-secrets
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

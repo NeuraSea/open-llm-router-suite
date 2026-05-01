@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "55432:5432"
+    environment:
+      POSTGRES_DB: router_test
+      POSTGRES_USER: router
+      POSTGRES_PASSWORD: router
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U router -d router_test"]
+      interval: 2s
+      timeout: 2s
+      retries: 20

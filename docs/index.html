@@ -1,0 +1,767 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="NeuraSea Open LLM Router Suite turns a Codex subscription session into a governed OpenAI-compatible API bridge for teams."
+    />
+    <title>NeuraSea Open LLM Router Suite</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Noto+Sans+SC:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #ffffff;
+        --text: #0a0a0a;
+        --muted: #737373;
+        --soft: #a3a3a3;
+        --border: #e5e5e5;
+        --blue: #0969da;
+        --blue-soft: #ddf4ff;
+        --surface: #ffffff;
+        --ink: #111111;
+        --success: #16a34a;
+        --warning: #d97706;
+        --code-bg: #f6f8fa;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          Geist,
+          "Noto Sans SC",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        font-size: 14px;
+        line-height: 1.6;
+        letter-spacing: 0;
+        overflow-x: hidden;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .shell {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+
+      .nav {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        border-bottom: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.94);
+        backdrop-filter: blur(12px);
+      }
+
+      .nav-inner {
+        display: flex;
+        min-height: 64px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 28px;
+        height: 28px;
+        place-items: center;
+        border: 1px solid var(--text);
+        border-radius: 6px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .nav-links a:hover {
+        color: var(--text);
+      }
+
+      .button {
+        display: inline-flex;
+        min-height: 40px;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border: 1px solid var(--text);
+        border-radius: 6px;
+        padding: 0 16px;
+        background: var(--text);
+        color: #ffffff;
+        font-weight: 600;
+        transition:
+          transform 150ms ease-out,
+          background 150ms ease-out,
+          color 150ms ease-out;
+      }
+
+      .button:hover {
+        transform: translateY(-1px);
+      }
+
+      .button.secondary {
+        border-color: var(--border);
+        background: var(--surface);
+        color: var(--text);
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(420px, 0.92fr);
+        gap: 44px;
+        align-items: center;
+        min-height: calc(88vh - 64px);
+        padding: 72px 0 52px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 18px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 6px 10px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--success);
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        max-width: 720px;
+        font-size: clamp(42px, 6vw, 72px);
+        line-height: 0.98;
+        letter-spacing: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .lead {
+        max-width: 680px;
+        margin-top: 24px;
+        color: var(--muted);
+        font-size: 18px;
+        line-height: 1.65;
+        overflow-wrap: anywhere;
+      }
+
+      .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 32px;
+      }
+
+      .fine-print {
+        max-width: 680px;
+        margin-top: 18px;
+        color: var(--soft);
+        font-size: 12px;
+        overflow-wrap: anywhere;
+      }
+
+      .visual {
+        min-width: 0;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--surface);
+        overflow: hidden;
+      }
+
+      .visual-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        border-bottom: 1px solid var(--border);
+        padding: 12px 14px;
+      }
+
+      .traffic {
+        display: flex;
+        gap: 6px;
+      }
+
+      .traffic span {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: #d0d7de;
+      }
+
+      .visual-title {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--muted);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .flow {
+        display: grid;
+        gap: 12px;
+        padding: 18px;
+      }
+
+      .flow-row {
+        display: grid;
+        grid-template-columns: 132px 1fr;
+        gap: 12px;
+        align-items: stretch;
+      }
+
+      .flow-label {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 12px;
+        color: var(--muted);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+      }
+
+      .flow-node {
+        display: flex;
+        min-width: 0;
+        min-height: 72px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 14px;
+        background: #fff;
+      }
+
+      .node-main strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 14px;
+        overflow-wrap: anywhere;
+      }
+
+      .node-main span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        overflow-wrap: anywhere;
+      }
+
+      .pill {
+        flex: 0 0 auto;
+        border: 1px solid #b6e3ff;
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: var(--blue-soft);
+        color: var(--blue);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .terminal {
+        border-top: 1px solid var(--border);
+        background: var(--code-bg);
+        padding: 16px 18px 18px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        line-height: 1.8;
+        color: #24292f;
+        overflow: auto;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+      }
+
+      .terminal .prompt {
+        color: var(--blue);
+      }
+
+      section {
+        padding: 76px 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .section-head {
+        display: grid;
+        grid-template-columns: minmax(220px, 0.64fr) minmax(0, 1fr);
+        gap: 36px;
+        align-items: start;
+        margin-bottom: 32px;
+      }
+
+      .kicker {
+        color: var(--blue);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+
+      h2 {
+        margin-top: 8px;
+        font-size: 28px;
+        line-height: 1.2;
+      }
+
+      .section-copy {
+        color: var(--muted);
+        font-size: 16px;
+        overflow-wrap: anywhere;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 18px;
+        background: var(--surface);
+      }
+
+      .card-number {
+        color: var(--blue);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .card h3 {
+        margin-top: 12px;
+        font-size: 16px;
+        line-height: 1.35;
+      }
+
+      .card p {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 13px;
+        overflow-wrap: anywhere;
+      }
+
+      .principle {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 0.52fr);
+        gap: 16px;
+        align-items: stretch;
+      }
+
+      .callout {
+        border: 1px solid var(--text);
+        border-radius: 6px;
+        padding: 22px;
+        background: var(--text);
+        color: #ffffff;
+      }
+
+      .callout strong {
+        display: block;
+        margin-bottom: 10px;
+        font-size: 20px;
+      }
+
+      .callout p {
+        color: #d4d4d4;
+        overflow-wrap: anywhere;
+      }
+
+      .stack-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .stack-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 14px 16px;
+      }
+
+      .stack-item strong {
+        font-size: 14px;
+      }
+
+      .stack-item span {
+        color: var(--muted);
+        font-size: 13px;
+        overflow-wrap: anywhere;
+      }
+
+      .tag {
+        flex: 0 0 auto;
+        color: var(--blue);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .cta-band {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 24px;
+      }
+
+      .cta-band p {
+        max-width: 700px;
+        margin-top: 8px;
+        color: var(--muted);
+        overflow-wrap: anywhere;
+      }
+
+      footer {
+        padding: 32px 0 44px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      @media (max-width: 920px) {
+        .hero,
+        .section-head,
+        .principle {
+          grid-template-columns: 1fr;
+        }
+
+        .hero {
+          min-height: auto;
+          padding-top: 48px;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .visual {
+          max-width: 680px;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .shell {
+          width: 100%;
+          max-width: 390px;
+          padding: 0 16px;
+        }
+
+        .nav-inner {
+          align-items: flex-start;
+          flex-direction: column;
+          padding: 14px 16px;
+        }
+
+        .nav-links {
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+
+        h1 {
+          max-width: calc(100vw - 32px);
+          font-size: 38px;
+          line-height: 1.05;
+          word-break: break-all;
+        }
+
+        .lead {
+          max-width: calc(100vw - 32px);
+          font-size: 16px;
+        }
+
+        .fine-print,
+        .visual {
+          max-width: calc(100vw - 32px);
+        }
+
+        .flow-row,
+        .flow-node,
+        .cta-band,
+        .stack-item {
+          grid-template-columns: 1fr;
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .flow-row {
+          display: block;
+        }
+
+        .flow-label {
+          margin-bottom: 8px;
+        }
+
+        .pill,
+        .tag {
+          margin-top: 8px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="nav">
+      <div class="shell nav-inner">
+        <a class="brand" href="#">
+          <span class="brand-mark">NS</span>
+          <span>NeuraSea Open LLM Router Suite</span>
+        </a>
+        <div class="nav-links" aria-label="Primary">
+          <a href="#contribution">贡献</a>
+          <a href="#principle">原理</a>
+          <a href="#stack">开源栈</a>
+          <a class="button" href="https://ai.neurasea.com" rel="noopener noreferrer">API 中转站</a>
+        </div>
+      </div>
+    </nav>
+
+    <main class="shell">
+      <section class="hero" aria-labelledby="hero-title">
+        <div>
+          <div class="eyebrow"><span class="dot"></span> Codex subscription to governed API bridge</div>
+          <h1 id="hero-title">把 Codex 订阅<br />变成团队可治理的<br />API 中转层。</h1>
+          <p class="lead">
+            我们做的不是“生成一个官方 API Key”。我们把 Codex 客户端已经合法拿到的 OAuth 会话导入 Router，
+            再封装成 OpenAI-compatible API、New API channel、SSO 权限和配额治理，给团队稳定使用。
+          </p>
+          <div class="hero-actions">
+            <a class="button" href="https://ai.neurasea.com" rel="noopener noreferrer">打开 API 中转站</a>
+            <a class="button secondary" href="#contribution">看我们做了什么</a>
+          </div>
+          <p class="fine-print">
+            上游额度、限流和模型可见性仍由原 Codex subscription 决定。这个项目提供的是企业网关、桥接和治理能力。
+          </p>
+        </div>
+
+        <aside class="visual" aria-label="Codex subscription bridge flow">
+          <div class="visual-top">
+            <div class="traffic"><span></span><span></span><span></span></div>
+            <div class="visual-title">router.neurasea.internal / bridge / codex</div>
+          </div>
+          <div class="flow">
+            <div class="flow-row">
+              <div class="flow-label">01 bind</div>
+              <div class="flow-node">
+                <div class="node-main">
+                  <strong>routerctl codex bind</strong>
+                  <span>读取 Codex CLI 的 ChatGPT OAuth access token 与 refresh token。</span>
+                </div>
+                <span class="pill">OAuth</span>
+              </div>
+            </div>
+            <div class="flow-row">
+              <div class="flow-label">02 route</div>
+              <div class="flow-node">
+                <div class="node-main">
+                  <strong>Router credential pool</strong>
+                  <span>按用户、企业池、并发租约、冷却状态选择可用 subscription。</span>
+                </div>
+                <span class="pill">Lease</span>
+              </div>
+            </div>
+            <div class="flow-row">
+              <div class="flow-label">03 bridge</div>
+              <div class="flow-node">
+                <div class="node-main">
+                  <strong>/v1/responses -> /backend-api/codex/responses</strong>
+                  <span>转换请求协议、过滤不兼容参数、转发 SSE，再翻译回客户端格式。</span>
+                </div>
+                <span class="pill">API</span>
+              </div>
+            </div>
+          </div>
+          <div class="terminal">
+            <div><span class="prompt">$</span> curl https://ai.neurasea.com/v1/responses</div>
+            <div>{ "model": "gpt-5.4", "stream": true }</div>
+            <div><span class="prompt">event:</span> response.completed</div>
+          </div>
+        </aside>
+      </section>
+
+      <section id="contribution" aria-labelledby="contribution-title">
+        <div class="section-head">
+          <div>
+            <div class="kicker">Our contribution</div>
+            <h2 id="contribution-title">核心难点在桥接层，不在拼 Docker Compose。</h2>
+          </div>
+          <p class="section-copy">
+            其它开源项目让控制台、聊天入口和本地客户端更完整。NeuraSea 在这个仓库里补的是最关键的中间层：
+            如何把 Codex subscription 会话变成团队能审计、能限流、能共享、能接入 OpenAI-compatible 客户端的 API。
+          </p>
+        </div>
+
+        <div class="grid">
+          <article class="card">
+            <div class="card-number">01</div>
+            <h3>Codex OAuth credential import</h3>
+            <p>通过 `routerctl codex bind` 触发 Codex 登录，把本地 OAuth token 与模型缓存导入 Router，而不是要求用户手填密钥。</p>
+          </article>
+          <article class="card">
+            <div class="card-number">02</div>
+            <h3>OpenAI-compatible bridge</h3>
+            <p>把 `/v1/chat/completions`、`/v1/responses` 和 Anthropic messages 映射到 Codex backend 可接受的 Responses 请求。</p>
+          </article>
+          <article class="card">
+            <div class="card-number">03</div>
+            <h3>SSE and protocol translation</h3>
+            <p>Codex 上游返回 SSE。Router 负责解析、转发、补齐 usage，并在不同客户端协议之间做格式翻译。</p>
+          </article>
+          <article class="card">
+            <div class="card-number">04</div>
+            <h3>Credential pool governance</h3>
+            <p>支持私有凭证、企业池、并发 lease、429 cooldown、401/403 disabled，让 subscription 不再是散落在个人机器上的黑盒。</p>
+          </article>
+          <article class="card">
+            <div class="card-number">05</div>
+            <h3>New API channel sync</h3>
+            <p>导入 credential 后自动创建 New API channel，把 Router bridge 挂成普通 OpenAI-compatible upstream。</p>
+          </article>
+          <article class="card">
+            <div class="card-number">06</div>
+            <h3>Enterprise auth and observability</h3>
+            <p>加上 Router SSO、JWT session、用量记录、配额接口和管理员视图，让这条链路能进入团队工作流。</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="principle" aria-labelledby="principle-title">
+        <div class="section-head">
+          <div>
+            <div class="kicker">Mechanism</div>
+            <h2 id="principle-title">底层原理很直接：代理一个已授权会话。</h2>
+          </div>
+          <p class="section-copy">
+            Codex CLI 登录后本来就能代表用户访问 Codex backend。我们把这个能力从单机 CLI 场景抽出来，
+            放进一个受控网关里，再提供 OpenAI API 兼容层。
+          </p>
+        </div>
+
+        <div class="principle">
+          <div class="callout">
+            <strong>不是破解，不是伪造，不是把订阅兑换成官方 API Key。</strong>
+            <p>
+              这是一个 OAuth session bridge。请求仍然走原 Codex subscription 的权限、额度和风控。
+              我们增加的是协议适配、凭证池、团队治理和中转站入口。
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-number">Request path</div>
+            <h3>Client -> New API -> Router -> Codex backend</h3>
+            <p>
+              New API 负责 token、模型、日志和计费视图。Router 负责拿到对应 credential，
+              调用 `chatgpt.com/backend-api/codex/responses`，再把结果返回给调用方。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="stack" aria-labelledby="stack-title">
+        <div class="section-head">
+          <div>
+            <div class="kicker">Open-source stack</div>
+            <h2 id="stack-title">我们集成开源项目，是为了让方案完整。</h2>
+          </div>
+          <p class="section-copy">
+            这些项目不是我们的核心 claim。它们是成熟组件，负责控制台、聊天入口、身份系统和本地启动体验。
+            我们的工作是把它们接到 Codex subscription bridge 这条主链路上。
+          </p>
+        </div>
+
+        <div class="stack-list">
+          <div class="stack-item">
+            <div><strong>New API</strong><br /><span>控制台、channel、token、日志、用量和计费视图。</span></div>
+            <span class="tag">control plane</span>
+          </div>
+          <div class="stack-item">
+            <div><strong>LibreChat</strong><br /><span>作为聊天入口，指向 New API 的 OpenAI-compatible endpoint。</span></div>
+            <span class="tag">chat entrypoint</span>
+          </div>
+          <div class="stack-item">
+            <div><strong>CC Switch</strong><br /><span>保留为外部本地工具，用来启动 Claude Code/Codex 和切换模型。</span></div>
+            <span class="tag">local launcher</span>
+          </div>
+          <div class="stack-item">
+            <div><strong>Casdoor / OIDC</strong><br /><span>推荐做统一身份入口，可前接 Feishu、企业 SSO 或微信登录。</span></div>
+            <span class="tag">identity</span>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="cta-title">
+        <div class="cta-band">
+          <div>
+            <div class="kicker">Try it</div>
+            <h2 id="cta-title">打开 NeuraSea API 中转站。</h2>
+            <p>
+              如果你只想使用 API，直接进入中转站。如果你要看实现，仓库里有 Router、routerctl、New API sync、
+              nginx、Docker Compose 和真实上游 smoke 脚本。
+            </p>
+          </div>
+          <a class="button" href="https://ai.neurasea.com" rel="noopener noreferrer">https://ai.neurasea.com</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="shell">
+      <div>AGPLv3. Built by NeuraSea. Open LLM Router Suite integrates open-source components and adds the Codex subscription bridge layer.</div>
+    </footer>
+  </body>
+</html>

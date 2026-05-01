@@ -1,0 +1,133 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: router
+      POSTGRES_PASSWORD: router
+      POSTGRES_DB: router
+    volumes:
+      - router-pg-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U router"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  newapi-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: newapi
+      POSTGRES_PASSWORD: newapi
+      POSTGRES_DB: newapi
+    volumes:
+      - newapi-pg-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U newapi"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    expose:
+      - "8000"
+    env_file: .env.local
+    environment:
+      ENTERPRISE_LLM_PROXY_DATABASE_URL: postgresql+psycopg://router:router@postgres:5432/router
+      ENTERPRISE_LLM_PROXY_ROUTERCTL_WHEEL_DIR: /app/dist
+      ENTERPRISE_LLM_PROXY_NEWAPI_SYNC_ENABLED: "true"
+      ENTERPRISE_LLM_PROXY_NEWAPI_BASE_URL: http://new-api:3000
+      ENTERPRISE_LLM_PROXY_BRIDGE_BASE_URL_FOR_NEWAPI: http://app:8000
+    volumes:
+      - ./certs:/app/certs:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  new-api:
+    build:
+      context: ./third_party/new-api
+    expose:
+      - "3000"
+    environment:
+      PORT: 3000
+      SQL_DSN: postgresql://newapi:newapi@newapi-postgres:5432/newapi
+      SESSION_SECRET: ${NEWAPI_SESSION_SECRET:?NEWAPI_SESSION_SECRET is required}
+      ROUTER_SSO_ENABLED: "true"
+      ROUTER_SSO_ISSUER: ${ROUTER_SSO_ISSUER:-enterprise-llm-proxy}
+      ROUTER_SSO_AUDIENCE: ${ROUTER_SSO_AUDIENCE:-new-api}
+      ROUTER_SSO_PUBLIC_KEY_PEM: ${ROUTER_SSO_PUBLIC_KEY_PEM:?ROUTER_SSO_PUBLIC_KEY_PEM is required}
+      ROUTER_SSO_ENTERPRISE_GROUP: ${ROUTER_SSO_ENTERPRISE_GROUP:-default}
+      ROUTER_SSO_LOGIN_URL: /sso/login
+      LIBRECHAT_PUBLIC_URL: ${LIBRECHAT_PUBLIC_URL:-/chat/}
+    depends_on:
+      newapi-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:3000/api/status | grep -q '\"success\":[[:space:]]*true' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  librechat-mongodb:
+    image: mongo:7
+    profiles: ["librechat"]
+    volumes:
+      - librechat-mongodb-data:/data/db
+    restart: unless-stopped
+
+  librechat:
+    image: ghcr.io/danny-avila/librechat:latest
+    profiles: ["librechat"]
+    expose:
+      - "3080"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3080
+      MONGO_URI: mongodb://librechat-mongodb:27017/LibreChat
+      CONFIG_PATH: /app/librechat.yaml
+      ENDPOINTS: custom
+      DOMAIN_CLIENT: ${LIBRECHAT_DOMAIN_CLIENT:-https://router.example.com/chat}
+      DOMAIN_SERVER: ${LIBRECHAT_DOMAIN_SERVER:-https://router.example.com/chat}
+      ALLOW_EMAIL_LOGIN: "false"
+      ALLOW_REGISTRATION: "false"
+      ALLOW_SOCIAL_LOGIN: "true"
+      ALLOW_SOCIAL_REGISTRATION: "true"
+      OPENID_CLIENT_ID: ${LIBRECHAT_OPENID_CLIENT_ID:-librechat}
+      OPENID_CLIENT_SECRET: ${LIBRECHAT_OPENID_CLIENT_SECRET:-replace_me}
+      OPENID_ISSUER: ${CASDOOR_ISSUER_URL:-https://sso.example.com}
+      OPENID_SCOPE: openid profile email
+      CREDS_KEY: ${LIBRECHAT_CREDS_KEY:-replace_me_32_byte_secret_value}
+      CREDS_IV: ${LIBRECHAT_CREDS_IV:-replace_me_16_bytes}
+      JWT_SECRET: ${LIBRECHAT_JWT_SECRET:-replace_me}
+      JWT_REFRESH_SECRET: ${LIBRECHAT_JWT_REFRESH_SECRET:-replace_me}
+    volumes:
+      - ./librechat.yaml:/app/librechat.yaml:ro
+    depends_on:
+      - librechat-mongodb
+      - new-api
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/router.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      app:
+        condition: service_healthy
+      new-api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  router-pg-data:
+  newapi-pg-data:
+  librechat-mongodb-data:

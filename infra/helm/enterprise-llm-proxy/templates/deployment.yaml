@@ -1,0 +1,186 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "enterprise-llm-proxy.fullname" . }}
+  labels:
+    {{- include "enterprise-llm-proxy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: app
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "enterprise-llm-proxy.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: app
+  template:
+    metadata:
+      labels:
+        {{- include "enterprise-llm-proxy.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: app
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "enterprise-llm-proxy.serviceAccountName" . }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: wait-for-postgresql
+          image: "{{ .Values.waitForDependencyImage.repository }}:{{ .Values.waitForDependencyImage.tag }}"
+          imagePullPolicy: {{ .Values.waitForDependencyImage.pullPolicy }}
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              until nc -z "${POSTGRES_HOST}" "${POSTGRES_PORT}"; do
+                echo "waiting for postgresql at ${POSTGRES_HOST}:${POSTGRES_PORT}"
+                sleep 2
+              done
+          env:
+            {{- if .Values.egressProxy.httpProxy }}
+            - name: HTTP_PROXY
+              value: {{ .Values.egressProxy.httpProxy | quote }}
+            - name: http_proxy
+              value: {{ .Values.egressProxy.httpProxy | quote }}
+            {{- end }}
+            {{- if .Values.egressProxy.httpsProxy }}
+            - name: HTTPS_PROXY
+              value: {{ .Values.egressProxy.httpsProxy | quote }}
+            - name: https_proxy
+              value: {{ .Values.egressProxy.httpsProxy | quote }}
+            {{- end }}
+            {{- if .Values.egressProxy.noProxy }}
+            - name: NO_PROXY
+              value: {{ .Values.egressProxy.noProxy | quote }}
+            - name: no_proxy
+              value: {{ .Values.egressProxy.noProxy | quote }}
+            {{- end }}
+            - name: POSTGRES_HOST
+              value: {{ default (printf "%s-postgresql" (include "enterprise-llm-proxy.fullname" .)) .Values.postgresql.hostOverride | quote }}
+            - name: POSTGRES_PORT
+              value: "5432"
+        {{- if .Values.migration.enabled }}
+        - name: run-migrations
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              export ENTERPRISE_LLM_PROXY_DATABASE_URL="postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+              exec alembic upgrade head
+          envFrom:
+            - configMapRef:
+                name: {{ include "enterprise-llm-proxy.fullname" . }}
+            - secretRef:
+                name: {{ .Values.router.existingSecretName }}
+          env:
+            {{- if .Values.egressProxy.httpProxy }}
+            - name: HTTP_PROXY
+              value: {{ .Values.egressProxy.httpProxy | quote }}
+            - name: http_proxy
+              value: {{ .Values.egressProxy.httpProxy | quote }}
+            {{- end }}
+            {{- if .Values.egressProxy.httpsProxy }}
+            - name: HTTPS_PROXY
+              value: {{ .Values.egressProxy.httpsProxy | quote }}
+            - name: https_proxy
+              value: {{ .Values.egressProxy.httpsProxy | quote }}
+            {{- end }}
+            {{- if .Values.egressProxy.noProxy }}
+            - name: NO_PROXY
+              value: {{ .Values.egressProxy.noProxy | quote }}
+            - name: no_proxy
+              value: {{ .Values.egressProxy.noProxy | quote }}
+            {{- end }}
+            - name: POSTGRES_HOST
+              value: {{ default (printf "%s-postgresql" (include "enterprise-llm-proxy.fullname" .)) .Values.postgresql.hostOverride | quote }}
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_DB
+              value: {{ .Values.postgresql.database | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.postgresql.username | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.existingSecretName }}
+                  key: {{ .Values.postgresql.passwordSecretKey }}
+        {{- end }}
+      containers:
+        - name: app
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              export ENTERPRISE_LLM_PROXY_DATABASE_URL="postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+              exec uvicorn enterprise_llm_proxy.app:create_app --factory --host 0.0.0.0 --port 8000
+          envFrom:
+            - configMapRef:
+                name: {{ include "enterprise-llm-proxy.fullname" . }}
+            - secretRef:
+                name: {{ .Values.router.existingSecretName }}
+          env:
+            {{- if .Values.egressProxy.httpProxy }}
+            - name: HTTP_PROXY
+              value: {{ .Values.egressProxy.httpProxy | quote }}
+            - name: http_proxy
+              value: {{ .Values.egressProxy.httpProxy | quote }}
+            {{- end }}
+            {{- if .Values.egressProxy.httpsProxy }}
+            - name: HTTPS_PROXY
+              value: {{ .Values.egressProxy.httpsProxy | quote }}
+            - name: https_proxy
+              value: {{ .Values.egressProxy.httpsProxy | quote }}
+            {{- end }}
+            {{- if .Values.egressProxy.noProxy }}
+            - name: NO_PROXY
+              value: {{ .Values.egressProxy.noProxy | quote }}
+            - name: no_proxy
+              value: {{ .Values.egressProxy.noProxy | quote }}
+            {{- end }}
+            - name: POSTGRES_HOST
+              value: {{ default (printf "%s-postgresql" (include "enterprise-llm-proxy.fullname" .)) .Values.postgresql.hostOverride | quote }}
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_DB
+              value: {{ .Values.postgresql.database | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.postgresql.username | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.existingSecretName }}
+                  key: {{ .Values.postgresql.passwordSecretKey }}
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

@@ -1,0 +1,14 @@
+{{- if .Values.router.redirectToBaseUrl }}
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: router-int-to-public
+  labels:
+    {{- include "enterprise-llm-proxy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redirect
+spec:
+  redirectRegex:
+    regex: {{ printf "^https?://%s(.*)" (.Values.hostname | replace "." "\\.") | quote }}
+    replacement: {{ printf "%s${1}" (.Values.router.redirectToBaseUrl | trimSuffix "/") | quote }}
+    permanent: false
+{{- end }}

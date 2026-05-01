@@ -1,0 +1,184 @@
+{{- if .Values.gateway.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "enterprise-llm-proxy.fullname" . }}-gateway
+  labels:
+    {{- include "enterprise-llm-proxy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway
+data:
+  router.conf: |
+    upstream router_app {
+        server {{ include "enterprise-llm-proxy.fullname" . }}:{{ .Values.service.port }};
+    }
+
+    upstream new_api {
+        server {{ include "enterprise-llm-proxy.fullname" . }}-new-api:{{ .Values.newApi.service.port }};
+    }
+
+    {{- if .Values.gateway.externalScheme }}
+    map $http_x_forwarded_proto $router_external_proto {
+        default {{ .Values.gateway.externalScheme }};
+        ""      {{ .Values.gateway.externalScheme }};
+    }
+    {{- else }}
+    map $http_x_forwarded_proto $router_external_proto {
+        default $http_x_forwarded_proto;
+        ""      $scheme;
+    }
+    {{- end }}
+
+    server {
+        listen 8080;
+        server_name {{ default .Values.hostname .Values.gateway.hostname }};
+
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $router_external_proto;
+        proxy_set_header X-Router-SSO-Assertion "";
+        proxy_set_header New-Api-User      "";
+
+        proxy_buffering    off;
+        proxy_cache        off;
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+
+        error_page 401 = @sso_login;
+
+        location = /nginx-healthz {
+            access_log off;
+            return 200 "ok\n";
+        }
+
+        location = /_sso_assertion {
+            internal;
+            proxy_pass http://router_app/sso/assertion;
+            proxy_pass_request_body off;
+            proxy_set_header Content-Length "";
+            proxy_set_header Cookie $http_cookie;
+            proxy_set_header Authorization $http_authorization;
+            proxy_set_header X-Router-SSO-Assertion "";
+            proxy_set_header New-Api-User "";
+        }
+
+        location @sso_login {
+            return 302 $router_external_proto://$host/sso/login?return_to=$router_external_proto://$host$request_uri;
+        }
+
+        location = /healthz {
+            proxy_set_header X-Router-SSO-Assertion "";
+            proxy_set_header New-Api-User "";
+            proxy_pass http://router_app;
+        }
+
+        location ^~ /sso/ {
+            proxy_set_header X-Router-SSO-Assertion "";
+            proxy_set_header New-Api-User "";
+            proxy_pass http://router_app;
+        }
+
+        location ^~ /auth/ {
+            proxy_set_header X-Router-SSO-Assertion "";
+            proxy_set_header New-Api-User "";
+            proxy_pass http://router_app;
+        }
+
+        location ^~ /cli/ {
+            proxy_set_header X-Router-SSO-Assertion "";
+            proxy_set_header New-Api-User "";
+            proxy_pass http://router_app;
+        }
+
+        location ^~ /install {
+            proxy_set_header X-Router-SSO-Assertion "";
+            proxy_set_header New-Api-User "";
+            proxy_pass http://router_app;
+        }
+
+        location ^~ /feishu/ {
+            proxy_set_header X-Router-SSO-Assertion "";
+            proxy_set_header New-Api-User "";
+            proxy_pass http://router_app;
+        }
+
+        location ^~ /ui/ {
+            proxy_set_header X-Router-SSO-Assertion "";
+            proxy_set_header New-Api-User "";
+            proxy_pass http://router_app;
+        }
+
+        location ^~ /portal {
+            proxy_set_header X-Router-SSO-Assertion "";
+            proxy_set_header New-Api-User "";
+            proxy_pass http://router_app;
+        }
+
+        location ^~ /me/ {
+            proxy_set_header X-Router-SSO-Assertion "";
+            proxy_set_header New-Api-User "";
+            proxy_pass http://router_app;
+        }
+
+        location ^~ /admin/ {
+            proxy_set_header X-Router-SSO-Assertion "";
+            proxy_set_header New-Api-User "";
+            proxy_pass http://router_app;
+        }
+
+        location ^~ /bridge/ {
+            proxy_set_header X-Router-SSO-Assertion "";
+            proxy_set_header New-Api-User "";
+            proxy_pass http://router_app;
+        }
+
+        location ^~ /v1/ {
+            proxy_set_header X-Router-SSO-Assertion "";
+            proxy_set_header New-Api-User "";
+            proxy_pass http://new_api;
+        }
+
+        location = /v1 {
+            proxy_set_header X-Router-SSO-Assertion "";
+            proxy_set_header New-Api-User "";
+            proxy_pass http://new_api;
+        }
+
+        location ^~ /mj/ {
+            proxy_set_header X-Router-SSO-Assertion "";
+            proxy_set_header New-Api-User "";
+            proxy_pass http://new_api;
+        }
+
+        location ^~ /suno/ {
+            proxy_set_header X-Router-SSO-Assertion "";
+            proxy_set_header New-Api-User "";
+            proxy_pass http://new_api;
+        }
+
+        location ^~ /kling/ {
+            proxy_set_header X-Router-SSO-Assertion "";
+            proxy_set_header New-Api-User "";
+            proxy_pass http://new_api;
+        }
+
+        location ^~ /api/ {
+            auth_request /_sso_assertion;
+            auth_request_set $router_sso_assertion $upstream_http_x_router_sso_assertion;
+            proxy_set_header X-Router-SSO-Assertion $router_sso_assertion;
+            proxy_set_header New-Api-User "";
+            proxy_set_header Authorization "";
+            proxy_pass http://new_api;
+        }
+
+        location / {
+            auth_request /_sso_assertion;
+            auth_request_set $router_sso_assertion $upstream_http_x_router_sso_assertion;
+            proxy_set_header X-Router-SSO-Assertion $router_sso_assertion;
+            proxy_set_header New-Api-User "";
+            proxy_set_header Authorization "";
+            proxy_pass http://new_api;
+        }
+    }
+{{- end }}

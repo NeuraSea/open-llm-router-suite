@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "enterprise-llm-proxy.fullname" . }}
+  labels:
+    {{- include "enterprise-llm-proxy.labels" . | nindent 4 }}
+data:
+  ENTERPRISE_LLM_PROXY_ROUTER_PUBLIC_BASE_URL: {{ .Values.router.publicBaseUrl | quote }}
+  ENTERPRISE_LLM_PROXY_SESSION_COOKIE_SECURE: {{ .Values.router.sessionCookieSecure | quote }}
+  {{- if .Values.router.sessionCookieDomain }}
+  ENTERPRISE_LLM_PROXY_SESSION_COOKIE_DOMAIN: {{ .Values.router.sessionCookieDomain | quote }}
+  {{- end }}
+  ENTERPRISE_LLM_PROXY_SSO_RETURN_TO_ALLOWED_HOSTS: {{ .Values.router.ssoReturnToAllowedHosts | toJson | quote }}
+  ENTERPRISE_LLM_PROXY_ROUTERCTL_WHEEL_DIR: {{ .Values.router.distributionWheelDir | quote }}
+  ENTERPRISE_LLM_PROXY_ADMIN_EMAILS: {{ .Values.router.adminEmails | quote }}
+  ENTERPRISE_LLM_PROXY_ADMIN_SUBJECTS: {{ .Values.router.adminSubjects | quote }}
+  ENTERPRISE_LLM_PROXY_FEISHU_REDIRECT_URI: {{ .Values.router.feishuRedirectUri | quote }}
+  ENTERPRISE_LLM_PROXY_FEISHU_H5_SDK_URL: {{ .Values.router.feishuH5SdkUrl | quote }}
+  {{- if .Values.router.oidcAuthorizeUrl }}
+  ENTERPRISE_LLM_PROXY_OIDC_AUTHORIZE_URL: {{ .Values.router.oidcAuthorizeUrl | quote }}
+  ENTERPRISE_LLM_PROXY_OIDC_CLIENT_ID: {{ .Values.router.oidcClientId | quote }}
+  ENTERPRISE_LLM_PROXY_OIDC_ISSUER: {{ .Values.router.oidcIssuer | quote }}
+  ENTERPRISE_LLM_PROXY_OIDC_JWKS_URL: {{ .Values.router.oidcJwksUrl | quote }}
+  ENTERPRISE_LLM_PROXY_OIDC_LOGIN_LABEL: {{ .Values.router.oidcLoginLabel | quote }}
+  ENTERPRISE_LLM_PROXY_OIDC_REDIRECT_URI: {{ .Values.router.oidcRedirectUri | quote }}
+  ENTERPRISE_LLM_PROXY_OIDC_SCOPE: {{ .Values.router.oidcScope | quote }}
+  ENTERPRISE_LLM_PROXY_OIDC_TOKEN_URL: {{ .Values.router.oidcTokenUrl | quote }}
+  ENTERPRISE_LLM_PROXY_OIDC_TRUST_ADMIN_CLAIM: {{ .Values.router.oidcTrustAdminClaim | quote }}
+  ENTERPRISE_LLM_PROXY_OIDC_TRUSTED_DELEGATION_SERVICE_USER_IDS: {{ .Values.router.oidcTrustedDelegationServiceUserIds | quote }}
+  ENTERPRISE_LLM_PROXY_OIDC_USERINFO_URL: {{ .Values.router.oidcUserinfoUrl | quote }}
+  {{- end }}
+  ENTERPRISE_LLM_PROXY_LM_STUDIO_ENABLED: {{ .Values.router.lmStudioEnabled | quote }}
+  ENTERPRISE_LLM_PROXY_LM_STUDIO_BASE_URL: {{ .Values.router.lmStudioBaseUrl | quote }}
+  {{ if .Values.newApi.enabled }}
+  ENTERPRISE_LLM_PROXY_ROUTER_SSO_ISSUER: {{ .Values.newApi.routerSsoIssuer | quote }}
+  ENTERPRISE_LLM_PROXY_ROUTER_SSO_AUDIENCE: {{ .Values.newApi.routerSsoAudience | quote }}
+  ENTERPRISE_LLM_PROXY_NEWAPI_SYNC_ENABLED: {{ .Values.newApi.sync.enabled | quote }}
+  ENTERPRISE_LLM_PROXY_NEWAPI_BASE_URL: {{ printf "http://%s-new-api:%v" (include "enterprise-llm-proxy.fullname" .) .Values.newApi.service.port | quote }}
+  ENTERPRISE_LLM_PROXY_NEWAPI_ADMIN_USER_ID: {{ .Values.newApi.sync.adminUserId | quote }}
+  ENTERPRISE_LLM_PROXY_NEWAPI_ENTERPRISE_GROUP: {{ .Values.newApi.sync.enterpriseGroup | quote }}
+  ENTERPRISE_LLM_PROXY_BRIDGE_BASE_URL_FOR_NEWAPI: {{ printf "http://%s:%v" (include "enterprise-llm-proxy.fullname" .) .Values.service.port | quote }}
+  {{ end }}

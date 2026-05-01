@@ -1,0 +1,22 @@
+version: 1.3.5
+
+cache: true
+
+interface:
+  endpointsMenu: true
+  modelSelect: true
+  parameters: true
+
+endpoints:
+  custom:
+    - name: "New API"
+      apiKey: "user_provided"
+      baseURL: "http://new-api:3000/v1"
+      models:
+        default:
+          - "openai-codex/gpt-5.4"
+          - "claude-max/claude-sonnet-4-6"
+        fetch: true
+      titleConvo: true
+      titleModel: "openai-codex/gpt-5.4"
+      modelDisplayLabel: "New API"

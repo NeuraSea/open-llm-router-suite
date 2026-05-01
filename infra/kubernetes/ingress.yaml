@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: enterprise-llm-proxy
+  namespace: enterprise-llm-proxy
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  tls:
+    - hosts:
+        - router.example.com
+      secretName: enterprise-llm-proxy-tls
+  rules:
+    - host: router.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: enterprise-llm-proxy
+                port:
+                  number: 80

@@ -1,0 +1,18 @@
+{{- if and .Values.newApi.enabled .Values.newApi.postgresql.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "enterprise-llm-proxy.fullname" . }}-newapi-postgresql
+  labels:
+    {{- include "enterprise-llm-proxy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: newapi-postgresql
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "enterprise-llm-proxy.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: newapi-postgresql
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+{{- end }}

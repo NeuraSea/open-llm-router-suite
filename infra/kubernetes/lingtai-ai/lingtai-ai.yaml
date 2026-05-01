@@ -1,0 +1,808 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: cloudflare-lingtai-dns01
+spec:
+  acme:
+    email: ops@lingtai.ai
+    privateKeySecretRef:
+      name: cloudflare-lingtai-dns01-account-key
+    server: https://acme-v02.api.letsencrypt.org/directory
+    solvers:
+      - selector:
+          dnsZones:
+            - lingtai.ai
+        dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-lingtai-api-token
+              key: api-token
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lingtai-router-config
+  namespace: lingtai-ai
+data:
+  ENTERPRISE_LLM_PROXY_ROUTER_PUBLIC_BASE_URL: https://api.lingtai.ai/v1
+  ENTERPRISE_LLM_PROXY_SESSION_COOKIE_SECURE: "true"
+  ENTERPRISE_LLM_PROXY_SESSION_COOKIE_DOMAIN: .lingtai.ai
+  ENTERPRISE_LLM_PROXY_SSO_RETURN_TO_ALLOWED_HOSTS: '["api.lingtai.ai"]'
+  ENTERPRISE_LLM_PROXY_ROUTERCTL_WHEEL_DIR: /app/dist
+  ENTERPRISE_LLM_PROXY_ADMIN_EMAILS: '[]'
+  ENTERPRISE_LLM_PROXY_ADMIN_SUBJECTS: '[]'
+  ENTERPRISE_LLM_PROXY_FEISHU_H5_SDK_URL: https://lf1-cdn-tos.bytegoofy.com/goofy/lark/op/h5-js-sdk-1.5.16.js
+  ENTERPRISE_LLM_PROXY_OIDC_AUTHORIZE_URL: https://sso.lingtai.ai/login/oauth/authorize
+  ENTERPRISE_LLM_PROXY_OIDC_CLIENT_ID: api-lingtai
+  ENTERPRISE_LLM_PROXY_OIDC_ISSUER: https://sso.lingtai.ai
+  ENTERPRISE_LLM_PROXY_OIDC_JWKS_URL: https://sso.lingtai.ai/.well-known/jwks
+  ENTERPRISE_LLM_PROXY_OIDC_LOGIN_LABEL: Lingtai WeChat
+  ENTERPRISE_LLM_PROXY_OIDC_REDIRECT_URI: https://api.lingtai.ai/auth/oidc/callback
+  ENTERPRISE_LLM_PROXY_OIDC_SCOPE: openid profile email offline_access
+  ENTERPRISE_LLM_PROXY_OIDC_TOKEN_URL: https://sso.lingtai.ai/api/login/oauth/access_token
+  ENTERPRISE_LLM_PROXY_OIDC_TRUST_ADMIN_CLAIM: "false"
+  ENTERPRISE_LLM_PROXY_OIDC_TRUSTED_DELEGATION_SERVICE_USER_IDS: '[]'
+  ENTERPRISE_LLM_PROXY_OIDC_USERINFO_URL: https://sso.lingtai.ai/api/userinfo
+  ENTERPRISE_LLM_PROXY_ROUTER_SSO_ISSUER: enterprise-llm-proxy
+  ENTERPRISE_LLM_PROXY_ROUTER_SSO_AUDIENCE: new-api
+  ENTERPRISE_LLM_PROXY_NEWAPI_SYNC_ENABLED: "false"
+  ENTERPRISE_LLM_PROXY_NEWAPI_BASE_URL: http://lingtai-api-new-api:3000
+  ENTERPRISE_LLM_PROXY_NEWAPI_ADMIN_USER_ID: "1"
+  ENTERPRISE_LLM_PROXY_NEWAPI_ENTERPRISE_GROUP: default
+  ENTERPRISE_LLM_PROXY_BRIDGE_BASE_URL_FOR_NEWAPI: http://lingtai-api:8000
+  ENTERPRISE_LLM_PROXY_LM_STUDIO_ENABLED: "false"
+  ENTERPRISE_LLM_PROXY_LM_STUDIO_BASE_URL: http://host.docker.internal:1234/v1
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lingtai-casdoor-config
+  namespace: lingtai-ai
+data:
+  appname: casdoor
+  httpport: "8000"
+  runmode: prod
+  copyrequestbody: "true"
+  driverName: postgres
+  dbName: casdoor
+  showSql: "false"
+  isCloudIntranet: "false"
+  origin: https://sso.lingtai.ai
+  originFrontend: https://sso.lingtai.ai
+  staticBaseUrl: https://cdn.casbin.org
+  isDemoMode: "false"
+  forceLanguage: zh
+  defaultLanguage: zh
+  defaultApplication: api-lingtai
+  enableGzip: "true"
+  quota: '{"organization": -1, "user": -1, "application": -1, "provider": -1}'
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lingtai-router-postgresql
+  namespace: lingtai-ai
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: lingtai-api
+    app.kubernetes.io/component: router-postgresql
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: lingtai-router-postgresql
+  namespace: lingtai-ai
+spec:
+  replicas: 1
+  serviceName: lingtai-router-postgresql
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lingtai-api
+      app.kubernetes.io/component: router-postgresql
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lingtai-api
+        app.kubernetes.io/component: router-postgresql
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRES_DB
+              value: router
+            - name: POSTGRES_USER
+              value: router
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lingtai-router-postgres
+                  key: password
+          ports:
+            - name: postgres
+              containerPort: 5432
+          readinessProbe:
+            exec:
+              command: ["/bin/sh", "-ec", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["/bin/sh", "-ec", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lingtai-newapi-postgresql
+  namespace: lingtai-ai
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: lingtai-api
+    app.kubernetes.io/component: newapi-postgresql
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: lingtai-newapi-postgresql
+  namespace: lingtai-ai
+spec:
+  replicas: 1
+  serviceName: lingtai-newapi-postgresql
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lingtai-api
+      app.kubernetes.io/component: newapi-postgresql
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lingtai-api
+        app.kubernetes.io/component: newapi-postgresql
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRES_DB
+              value: newapi
+            - name: POSTGRES_USER
+              value: newapi
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lingtai-newapi-postgres
+                  key: password
+          ports:
+            - name: postgres
+              containerPort: 5432
+          readinessProbe:
+            exec:
+              command: ["/bin/sh", "-ec", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["/bin/sh", "-ec", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lingtai-casdoor-postgresql
+  namespace: lingtai-ai
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: lingtai-casdoor
+    app.kubernetes.io/component: postgresql
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: lingtai-casdoor-postgresql
+  namespace: lingtai-ai
+spec:
+  replicas: 1
+  serviceName: lingtai-casdoor-postgresql
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lingtai-casdoor
+      app.kubernetes.io/component: postgresql
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lingtai-casdoor
+        app.kubernetes.io/component: postgresql
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRES_DB
+              value: casdoor
+            - name: POSTGRES_USER
+              value: casdoor
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lingtai-casdoor-postgres
+                  key: password
+          ports:
+            - name: postgres
+              containerPort: 5432
+          readinessProbe:
+            exec:
+              command: ["/bin/sh", "-ec", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["/bin/sh", "-ec", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lingtai-api
+  namespace: lingtai-ai
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: lingtai-api
+    app.kubernetes.io/component: router
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lingtai-api
+  namespace: lingtai-ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lingtai-api
+      app.kubernetes.io/component: router
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lingtai-api
+        app.kubernetes.io/component: router
+    spec:
+      initContainers:
+        - name: wait-for-postgresql
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec", "until nc -z lingtai-router-postgresql 5432; do echo waiting for router postgres; sleep 2; done"]
+        - name: run-migrations
+          image: enterprise-llm-proxy:orbstack-20260430-1242-codex-openai-bridge
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              export ENTERPRISE_LLM_PROXY_DATABASE_URL="postgresql+psycopg://router:${POSTGRES_PASSWORD}@lingtai-router-postgresql:5432/router"
+              exec alembic upgrade head
+          envFrom:
+            - configMapRef:
+                name: lingtai-router-config
+            - secretRef:
+                name: lingtai-router-app
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lingtai-router-postgres
+                  key: password
+      containers:
+        - name: app
+          image: enterprise-llm-proxy:orbstack-20260430-1242-codex-openai-bridge
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              export ENTERPRISE_LLM_PROXY_DATABASE_URL="postgresql+psycopg://router:${POSTGRES_PASSWORD}@lingtai-router-postgresql:5432/router"
+              exec uvicorn enterprise_llm_proxy.app:create_app --factory --host 0.0.0.0 --port 8000
+          envFrom:
+            - configMapRef:
+                name: lingtai-router-config
+            - secretRef:
+                name: lingtai-router-app
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lingtai-router-postgres
+                  key: password
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lingtai-api-new-api
+  namespace: lingtai-ai
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: lingtai-api
+    app.kubernetes.io/component: new-api
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lingtai-api-new-api
+  namespace: lingtai-ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lingtai-api
+      app.kubernetes.io/component: new-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lingtai-api
+        app.kubernetes.io/component: new-api
+    spec:
+      initContainers:
+        - name: wait-for-newapi-postgresql
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec", "until nc -z lingtai-newapi-postgresql 5432; do echo waiting for newapi postgres; sleep 2; done"]
+      containers:
+        - name: new-api
+          image: new-api:orbstack-20260430-0055-sso-auto-group
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              export SQL_DSN="postgresql://newapi:${POSTGRES_PASSWORD}@lingtai-newapi-postgresql:5432/newapi"
+              exec /new-api
+          env:
+            - name: PORT
+              value: "3000"
+            - name: SERVER_ADDRESS
+              value: https://api.lingtai.ai
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: lingtai-new-api
+                  key: session-secret
+            - name: ROUTER_SSO_ENABLED
+              value: "true"
+            - name: ROUTER_SSO_ISSUER
+              value: enterprise-llm-proxy
+            - name: ROUTER_SSO_AUDIENCE
+              value: new-api
+            - name: ROUTER_SSO_PUBLIC_KEY_PEM
+              valueFrom:
+                secretKeyRef:
+                  name: lingtai-new-api
+                  key: router-sso-public-key-pem
+            - name: ROUTER_SSO_ENTERPRISE_GROUP
+              value: default
+            - name: ROUTER_SSO_LOGIN_URL
+              value: /sso/login
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lingtai-newapi-postgres
+                  key: password
+          ports:
+            - name: http
+              containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /api/status
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lingtai-casdoor
+  namespace: lingtai-ai
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: lingtai-casdoor
+    app.kubernetes.io/component: app
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lingtai-casdoor
+  namespace: lingtai-ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lingtai-casdoor
+      app.kubernetes.io/component: app
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lingtai-casdoor
+        app.kubernetes.io/component: app
+    spec:
+      initContainers:
+        - name: wait-for-casdoor-postgresql
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec", "until nc -z lingtai-casdoor-postgresql 5432; do echo waiting for casdoor postgres; sleep 2; done"]
+      containers:
+        - name: casdoor
+          image: casbin/casdoor:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: lingtai-casdoor-config
+            - secretRef:
+                name: lingtai-casdoor
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lingtai-api-gateway
+  namespace: lingtai-ai
+data:
+  router.conf: |
+    upstream router_app {
+        server lingtai-api:8000;
+    }
+
+    upstream new_api {
+        server lingtai-api-new-api:3000;
+    }
+
+    map $http_x_forwarded_proto $router_external_proto {
+        default https;
+        ""      https;
+    }
+
+    server {
+        listen 8080;
+        server_name api.lingtai.ai;
+
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $router_external_proto;
+        proxy_set_header X-Router-SSO-Assertion "";
+        proxy_set_header New-Api-User      "";
+
+        proxy_buffering    off;
+        proxy_cache        off;
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+
+        error_page 401 = @sso_login;
+
+        location = /nginx-healthz {
+            access_log off;
+            return 200 "ok\n";
+        }
+
+        location = /_sso_assertion {
+            internal;
+            proxy_pass http://router_app/sso/assertion;
+            proxy_pass_request_body off;
+            proxy_set_header Content-Length "";
+            proxy_set_header Cookie $http_cookie;
+            proxy_set_header Authorization $http_authorization;
+            proxy_set_header X-Router-SSO-Assertion "";
+            proxy_set_header New-Api-User "";
+        }
+
+        location @sso_login {
+            return 302 $router_external_proto://$host/sso/login?return_to=$router_external_proto://$host$request_uri;
+        }
+
+        location = /healthz { proxy_pass http://router_app; }
+        location ^~ /sso/ { proxy_pass http://router_app; }
+        location ^~ /auth/ { proxy_pass http://router_app; }
+        location ^~ /cli/ { proxy_pass http://router_app; }
+        location ^~ /install { proxy_pass http://router_app; }
+        location ^~ /feishu/ { proxy_pass http://router_app; }
+        location ^~ /ui/ { proxy_pass http://router_app; }
+        location ^~ /portal { proxy_pass http://router_app; }
+        location ^~ /me/ { proxy_pass http://router_app; }
+        location ^~ /admin/ { proxy_pass http://router_app; }
+        location ^~ /bridge/ { proxy_pass http://router_app; }
+
+        location ^~ /v1/ {
+            proxy_set_header X-Router-SSO-Assertion "";
+            proxy_set_header New-Api-User "";
+            proxy_pass http://new_api;
+        }
+
+        location = /v1 {
+            proxy_set_header X-Router-SSO-Assertion "";
+            proxy_set_header New-Api-User "";
+            proxy_pass http://new_api;
+        }
+
+        location ^~ /mj/ { proxy_pass http://new_api; }
+        location ^~ /suno/ { proxy_pass http://new_api; }
+        location ^~ /kling/ { proxy_pass http://new_api; }
+
+        location ^~ /api/ {
+            auth_request /_sso_assertion;
+            auth_request_set $router_sso_assertion $upstream_http_x_router_sso_assertion;
+            proxy_set_header X-Router-SSO-Assertion $router_sso_assertion;
+            proxy_set_header New-Api-User "";
+            proxy_set_header Authorization "";
+            proxy_pass http://new_api;
+        }
+
+        location / {
+            auth_request /_sso_assertion;
+            auth_request_set $router_sso_assertion $upstream_http_x_router_sso_assertion;
+            proxy_set_header X-Router-SSO-Assertion $router_sso_assertion;
+            proxy_set_header New-Api-User "";
+            proxy_set_header Authorization "";
+            proxy_pass http://new_api;
+        }
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lingtai-api-gateway
+  namespace: lingtai-ai
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: lingtai-api
+    app.kubernetes.io/component: gateway
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lingtai-api-gateway
+  namespace: lingtai-ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lingtai-api
+      app.kubernetes.io/component: gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lingtai-api
+        app.kubernetes.io/component: gateway
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.27-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /nginx-healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /nginx-healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/conf.d/router.conf
+              subPath: router.conf
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: lingtai-api-gateway
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lingtai-cloudflared
+  namespace: lingtai-ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lingtai-api
+      app.kubernetes.io/component: cloudflared
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lingtai-api
+        app.kubernetes.io/component: cloudflared
+    spec:
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:2026.3.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - tunnel
+            - --no-autoupdate
+            - --protocol
+            - http2
+            - run
+            - --token
+            - $(TUNNEL_TOKEN)
+          env:
+            - name: TUNNEL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: lingtai-cloudflared
+                  key: TUNNEL_TOKEN
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lingtai-api
+  namespace: lingtai-ai
+  annotations:
+    cert-manager.io/cluster-issuer: cloudflare-lingtai-dns01
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: api.lingtai.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: lingtai-api-gateway
+                port:
+                  number: 8080
+  tls:
+    - hosts:
+        - api.lingtai.ai
+      secretName: api-lingtai-ai-tls
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lingtai-casdoor
+  namespace: lingtai-ai
+  annotations:
+    cert-manager.io/cluster-issuer: cloudflare-lingtai-dns01
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: sso.lingtai.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: lingtai-casdoor
+                port:
+                  number: 8000
+  tls:
+    - hosts:
+        - sso.lingtai.ai
+      secretName: sso-lingtai-ai-tls

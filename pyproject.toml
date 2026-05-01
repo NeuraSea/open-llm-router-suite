@@ -1,0 +1,37 @@
+[project]
+name = "enterprise-llm-proxy"
+version = "0.1.0"
+description = "New API centered LLM router solution with Router SSO, OAuth bridges, routerctl, LibreChat, and CC Switch integration."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "alembic>=1.16.0,<2.0.0",
+  "fastapi>=0.115.0,<1.0.0",
+  "httpx>=0.27.0,<1.0.0",
+  "cryptography>=43.0.0,<47.0.0",
+  "psycopg[binary]>=3.2.0,<4.0.0",
+  "pydantic-settings>=2.6.0,<3.0.0",
+  "pyjwt>=2.9.0,<3.0.0",
+  "sqlalchemy>=2.0.0,<3.0.0",
+  "uvicorn>=0.32.0,<1.0.0",
+  "litellm>=1.60.0,<2.0.0",
+]
+
+[project.scripts]
+routerctl = "enterprise_llm_proxy.cli:main"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3.0,<9.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/enterprise_llm_proxy"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

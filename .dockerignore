@@ -1,0 +1,12 @@
+.git
+.venv
+.pytest_cache
+__pycache__
+.env
+.env.local
+web/node_modules
+**/node_modules
+web/.vite
+third_party/new-api/web/default/dist
+third_party/new-api/web/classic/dist
+src/enterprise_llm_proxy/static/ui

@@ -1,0 +1,148 @@
+fullnameOverride: ""
+nameOverride: ""
+
+replicaCount: 1
+
+hostname: router.example.com
+ingressClassName: traefik
+
+image:
+  repository: enterprise-llm-proxy
+  tag: latest
+  pullPolicy: IfNotPresent
+
+waitForDependencyImage:
+  repository: busybox
+  tag: "1.36"
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+service:
+  type: ClusterIP
+  port: 8000
+
+gateway:
+  enabled: false
+  routePrimaryIngress: true
+  hostname: ""
+  externalScheme: ""
+  replicaCount: 1
+  image:
+    repository: nginx
+    tag: "1.27-alpine"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8080
+  ingress:
+    enabled: false
+    tls:
+      enabled: false
+      secretName: ""
+      clusterIssuer: ""
+  resources: {}
+
+newApi:
+  enabled: false
+  replicaCount: 1
+  image:
+    repository: new-api
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 3000
+  publicBaseUrl: ""
+  existingSecretName: enterprise-llm-proxy-new-api
+  sessionSecretKey: session-secret
+  routerSsoPublicKeyPemSecretKey: router-sso-public-key-pem
+  routerSsoIssuer: enterprise-llm-proxy
+  routerSsoAudience: new-api
+  routerSsoEnterpriseGroup: default
+  routerSsoLoginUrl: /sso/login
+  sync:
+    enabled: false
+    adminUserId: "1"
+    enterpriseGroup: default
+  postgresql:
+    enabled: false
+    database: newapi
+    username: newapi
+    existingSecretName: enterprise-llm-proxy-newapi-postgres
+    passwordSecretKey: password
+    image:
+      repository: postgres
+      tag: 16-alpine
+      pullPolicy: IfNotPresent
+    storage:
+      size: 10Gi
+      storageClassName: local-path
+    resources: {}
+  resources: {}
+
+egressProxy:
+  httpProxy: ""
+  httpsProxy: ""
+  noProxy: ""
+
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
+podLabels: {}
+
+migration:
+  enabled: true
+
+router:
+  publicBaseUrl: https://router.example.com/v1
+  redirectToBaseUrl: ""
+  backendServiceName: ""
+  sessionCookieSecure: true
+  sessionCookieDomain: ""
+  ssoReturnToAllowedHosts: []
+  distributionWheelDir: /app/dist
+  adminEmails: '["admin@example.com"]'
+  adminSubjects: '[]'
+  feishuRedirectUri: https://router.example.com/auth/oidc/callback
+  feishuH5SdkUrl: https://lf1-cdn-tos.bytegoofy.com/goofy/lark/op/h5-js-sdk-1.5.16.js
+  oidcAuthorizeUrl: ""
+  oidcClientId: ""
+  oidcIssuer: ""
+  oidcJwksUrl: ""
+  oidcLoginLabel: Company SSO
+  oidcRedirectUri: ""
+  oidcScope: openid profile email
+  oidcTokenUrl: ""
+  oidcTrustAdminClaim: false
+  oidcTrustedDelegationServiceUserIds: "[]"
+  oidcUserinfoUrl: ""
+  existingSecretName: enterprise-llm-proxy-app
+  lmStudioEnabled: false
+  lmStudioBaseUrl: http://host.docker.internal:1234/v1
+
+postgresql:
+  enabled: true
+  hostOverride: ""
+  database: router
+  username: router
+  existingSecretName: enterprise-llm-proxy-postgres
+  passwordSecretKey: password
+  image:
+    repository: postgres
+    tag: 16-alpine
+    pullPolicy: IfNotPresent
+  storage:
+    size: 10Gi
+    storageClassName: local-path
+  resources: {}
+
+tls:
+  enabled: true
+  secretName: enterprise-llm-proxy-tls
+  clusterIssuer: cloudflare-dns01

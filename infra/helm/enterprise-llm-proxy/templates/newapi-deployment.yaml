@@ -1,0 +1,125 @@
+{{- if .Values.newApi.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "enterprise-llm-proxy.fullname" . }}-new-api
+  labels:
+    {{- include "enterprise-llm-proxy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: new-api
+spec:
+  replicas: {{ .Values.newApi.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "enterprise-llm-proxy.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: new-api
+  template:
+    metadata:
+      labels:
+        {{- include "enterprise-llm-proxy.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: new-api
+    spec:
+      initContainers:
+        {{- if .Values.newApi.postgresql.enabled }}
+        - name: wait-for-newapi-postgresql
+          image: "{{ .Values.waitForDependencyImage.repository }}:{{ .Values.waitForDependencyImage.tag }}"
+          imagePullPolicy: {{ .Values.waitForDependencyImage.pullPolicy }}
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              until nc -z "${POSTGRES_HOST}" "${POSTGRES_PORT}"; do
+                echo "waiting for new-api postgresql at ${POSTGRES_HOST}:${POSTGRES_PORT}"
+                sleep 2
+              done
+          env:
+            - name: POSTGRES_HOST
+              value: {{ include "enterprise-llm-proxy.fullname" . }}-newapi-postgresql
+            - name: POSTGRES_PORT
+              value: "5432"
+        {{- end }}
+      containers:
+        - name: new-api
+          image: "{{ .Values.newApi.image.repository }}:{{ .Values.newApi.image.tag }}"
+          imagePullPolicy: {{ .Values.newApi.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              export SQL_DSN="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+              exec /new-api
+          env:
+            {{- if .Values.egressProxy.httpProxy }}
+            - name: HTTP_PROXY
+              value: {{ .Values.egressProxy.httpProxy | quote }}
+            - name: http_proxy
+              value: {{ .Values.egressProxy.httpProxy | quote }}
+            {{- end }}
+            {{- if .Values.egressProxy.httpsProxy }}
+            - name: HTTPS_PROXY
+              value: {{ .Values.egressProxy.httpsProxy | quote }}
+            - name: https_proxy
+              value: {{ .Values.egressProxy.httpsProxy | quote }}
+            {{- end }}
+            {{- if .Values.egressProxy.noProxy }}
+            - name: NO_PROXY
+              value: {{ .Values.egressProxy.noProxy | quote }}
+            - name: no_proxy
+              value: {{ .Values.egressProxy.noProxy | quote }}
+            {{- end }}
+            - name: PORT
+              value: {{ .Values.newApi.service.port | quote }}
+            {{- if .Values.newApi.publicBaseUrl }}
+            - name: SERVER_ADDRESS
+              value: {{ .Values.newApi.publicBaseUrl | quote }}
+            {{- end }}
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.newApi.existingSecretName }}
+                  key: {{ .Values.newApi.sessionSecretKey }}
+            - name: ROUTER_SSO_ENABLED
+              value: "true"
+            - name: ROUTER_SSO_ISSUER
+              value: {{ .Values.newApi.routerSsoIssuer | quote }}
+            - name: ROUTER_SSO_AUDIENCE
+              value: {{ .Values.newApi.routerSsoAudience | quote }}
+            - name: ROUTER_SSO_PUBLIC_KEY_PEM
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.newApi.existingSecretName }}
+                  key: {{ .Values.newApi.routerSsoPublicKeyPemSecretKey }}
+            - name: ROUTER_SSO_ENTERPRISE_GROUP
+              value: {{ .Values.newApi.routerSsoEnterpriseGroup | quote }}
+            - name: ROUTER_SSO_LOGIN_URL
+              value: {{ .Values.newApi.routerSsoLoginUrl | quote }}
+            - name: POSTGRES_HOST
+              value: {{ include "enterprise-llm-proxy.fullname" . }}-newapi-postgresql
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_DB
+              value: {{ .Values.newApi.postgresql.database | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.newApi.postgresql.username | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.newApi.postgresql.existingSecretName }}
+                  key: {{ .Values.newApi.postgresql.passwordSecretKey }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.newApi.service.port }}
+          readinessProbe:
+            httpGet:
+              path: /api/status
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.newApi.resources | nindent 12 }}
+{{- end }}

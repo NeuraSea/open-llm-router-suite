@@ -1,0 +1,70 @@
+{{- if and .Values.newApi.enabled .Values.newApi.postgresql.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "enterprise-llm-proxy.fullname" . }}-newapi-postgresql
+  labels:
+    {{- include "enterprise-llm-proxy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: newapi-postgresql
+spec:
+  serviceName: {{ include "enterprise-llm-proxy.fullname" . }}-newapi-postgresql
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "enterprise-llm-proxy.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: newapi-postgresql
+  template:
+    metadata:
+      labels:
+        {{- include "enterprise-llm-proxy.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: newapi-postgresql
+    spec:
+      containers:
+        - name: postgres
+          image: "{{ .Values.newApi.postgresql.image.repository }}:{{ .Values.newApi.postgresql.image.tag }}"
+          imagePullPolicy: {{ .Values.newApi.postgresql.image.pullPolicy }}
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.newApi.postgresql.database | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.newApi.postgresql.username | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.newApi.postgresql.existingSecretName }}
+                  key: {{ .Values.newApi.postgresql.passwordSecretKey }}
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.newApi.postgresql.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: {{ .Values.newApi.postgresql.storage.storageClassName | quote }}
+        resources:
+          requests:
+            storage: {{ .Values.newApi.postgresql.storage.size | quote }}
+{{- end }}
