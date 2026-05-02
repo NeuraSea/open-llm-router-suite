@@ -8,7 +8,7 @@ the credential bridge behind the developer portal at `/portal/setup`.
 Use the Router control-plane base URL, not the `/v1` API base:
 
 ```bash
-routerctl auth login --router-base-url https://ai.neurasea.com
+routerctl auth login --router-base-url https://api.lingtai.ai
 routerctl auth status
 ```
 
@@ -42,7 +42,7 @@ Create a New API token in the New API console, then call the OpenAI-compatible
 endpoint:
 
 ```bash
-curl https://ai.neurasea.com/v1/responses \
+curl https://api.lingtai.ai/v1/responses \
   -H "Authorization: Bearer <new-api-token>" \
   -H "Content-Type: application/json" \
   -d '{

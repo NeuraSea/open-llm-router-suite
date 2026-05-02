@@ -9,7 +9,7 @@ Landing page: https://neurasea.github.io/open-llm-router-suite/
 
 API relay: https://ai.neurasea.com
 
-Developer portal: https://ai.neurasea.com/portal/setup
+Verified developer portal: https://api.lingtai.ai/portal/setup
 
 routerctl + New API quickstart:
 https://github.com/NeuraSea/open-llm-router-suite/blob/main/docs/routerctl-newapi-quickstart.md
@@ -125,11 +125,11 @@ Feishu.
 
 ## Developer Workflow
 
-For the hosted NeuraSea relay, start at:
+For the verified Lingtai deployment, start at:
 
-- New API console and `/v1`: `https://ai.neurasea.com`
-- routerctl / OAuth binding guide: `https://ai.neurasea.com/portal/setup`
-- product API docs: `https://ai.neurasea.com/portal/docs`
+- New API console and `/v1`: `https://api.lingtai.ai`
+- routerctl / OAuth binding guide: `https://api.lingtai.ai/portal/setup`
+- product API docs: `https://api.lingtai.ai/portal/docs`
 
 Install and log in:
 
