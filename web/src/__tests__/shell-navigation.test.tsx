@@ -35,6 +35,7 @@ describe("AppShell", () => {
       </MemoryRouter>
     );
 
+    expect(screen.getByText("routerctl / OAuth 绑定")).toBeInTheDocument();
     expect(screen.queryByText("凭证池")).not.toBeInTheDocument();
   });
 

@@ -22,7 +22,7 @@ function buildNav(session: UiSession): { primary: NavItem[]; admin: NavItem[] } 
     { label: "Logs", to: "/portal/logs", icon: ScrollText },
     { label: "BYOK", to: "/portal/byok", icon: Plug2 },
     { label: "Preferences", to: "/portal/preferences", icon: Settings },
-    { label: "routerctl 安装", to: "/portal/setup", icon: Terminal },
+    { label: "routerctl / OAuth 绑定", to: "/portal/setup", icon: Terminal },
     { label: "API 文档", to: "/portal/docs", icon: BookOpen },
   ];
   const admin: NavItem[] =

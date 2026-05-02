@@ -9,6 +9,11 @@ Landing page: https://neurasea.github.io/open-llm-router-suite/
 
 API relay: https://ai.neurasea.com
 
+Developer portal: https://ai.neurasea.com/portal/setup
+
+routerctl + New API quickstart:
+https://github.com/NeuraSea/open-llm-router-suite/blob/main/docs/routerctl-newapi-quickstart.md
+
 The repository is AGPLv3 because the solution depends on and extends New API,
 which is AGPLv3.
 
@@ -30,6 +35,15 @@ which is AGPLv3.
   Router, New API, and LibreChat.
 
 ## Public Routes
+
+Production entrypoints:
+
+- New API stays on `/` and owns the user-facing console, token creation,
+  channels, logs, and `/v1` API calls.
+- Router developer setup lives at `/portal/setup`, where users install
+  `routerctl` and bind Codex/Claude OAuth credentials.
+- Router API docs live at `/portal/docs` and explain the model prefixes and
+  OpenAI-compatible endpoints.
 
 Router owns:
 
@@ -111,6 +125,12 @@ Feishu.
 
 ## Developer Workflow
 
+For the hosted NeuraSea relay, start at:
+
+- New API console and `/v1`: `https://ai.neurasea.com`
+- routerctl / OAuth binding guide: `https://ai.neurasea.com/portal/setup`
+- product API docs: `https://ai.neurasea.com/portal/docs`
+
 Install and log in:
 
 ```bash
@@ -124,6 +144,11 @@ Bind local upstream OAuth credentials:
 uv run routerctl claude bind
 uv run routerctl codex bind
 ```
+
+After binding, Router syncs the OAuth-backed bridge into New API as a channel.
+Create a New API token in the New API console, then call `/v1` with the synced
+model prefix, for example `openai-codex/gpt-5-codex` or
+`claude-max/claude-sonnet-4-6`.
 
 Discover and configure models:
 

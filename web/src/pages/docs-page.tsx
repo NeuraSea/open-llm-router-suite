@@ -24,6 +24,7 @@ const PROVIDER_TABLE = [
 export function DocsPage() {
   const { config } = useUiShell();
   const base = config.router_public_base_url.replace(/\/$/, "");
+  const controlPlaneBase = config.router_control_plane_base_url.replace(/\/$/, "");
 
   return (
     <div className="space-y-8">
@@ -36,9 +37,64 @@ export function DocsPage() {
           <h2 className="text-2xl font-bold tracking-tight text-foreground">API 文档</h2>
         </div>
         <p className="text-sm leading-6 text-muted-foreground">
-          模型命名规则与完整 API Reference。
+          routerctl 绑定、New API 调用、模型命名规则与完整 API Reference。
         </p>
       </div>
+
+      <section className="space-y-4" id="routerctl-newapi-quickstart">
+        <div className="space-y-1">
+          <h3 className="text-lg font-semibold text-foreground">routerctl + New API Quickstart</h3>
+          <p className="text-sm leading-6 text-muted-foreground">
+            routerctl 只负责登录和导入本机 OAuth 凭证。绑定完成后，Router bridge 会同步为 New API channel；
+            业务调用继续使用 New API token 请求 /v1。
+          </p>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+          <Card className="border-border">
+            <CardContent className="space-y-3 p-4">
+              <div className="text-sm font-semibold text-foreground">最小命令</div>
+              <ol className="space-y-2 text-sm text-muted-foreground">
+                <li>
+                  <code className="block rounded-md bg-secondary px-3 py-2 font-mono text-xs text-foreground">
+                    {`routerctl auth login --router-base-url ${controlPlaneBase}`}
+                  </code>
+                </li>
+                <li>
+                  <code className="block rounded-md bg-secondary px-3 py-2 font-mono text-xs text-foreground">
+                    routerctl codex bind
+                  </code>
+                </li>
+                <li>
+                  <code className="block rounded-md bg-secondary px-3 py-2 font-mono text-xs text-foreground">
+                    routerctl claude bind
+                  </code>
+                </li>
+              </ol>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border">
+            <CardContent className="space-y-3 p-4">
+              <div className="text-sm font-semibold text-foreground">New API 调用方向</div>
+              <div className="space-y-2 text-sm leading-6 text-muted-foreground">
+                <p>
+                  使用 New API token，请求{" "}
+                  <code className="rounded bg-secondary px-1 py-0.5 font-mono text-xs text-foreground">{base}</code>
+                  。模型走 New API 中已同步的 Codex/Claude channel。
+                </p>
+                <p>
+                  Codex OAuth 模型使用{" "}
+                  <code className="rounded bg-secondary px-1 py-0.5 font-mono text-xs text-foreground">openai-codex/</code>{" "}
+                  前缀；Claude Max OAuth 模型使用{" "}
+                  <code className="rounded bg-secondary px-1 py-0.5 font-mono text-xs text-foreground">claude-max/</code>{" "}
+                  前缀。
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
 
       {/* Model naming + prefix table */}
       <section className="space-y-3" id="cat-naming">

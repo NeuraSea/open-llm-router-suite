@@ -143,6 +143,27 @@ describe("PortalPage", () => {
     expect(screen.queryByText(/internal\.example\.com/)).not.toBeInTheDocument();
   });
 
+  it("explains how routerctl OAuth bindings become New API traffic", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/ui/models") {
+        return Promise.resolve(jsonResponse({ data: [] }));
+      }
+      if (url === "/me/upstream-credentials") {
+        return Promise.resolve(jsonResponse({ data: [] }));
+      }
+      return Promise.reject(new Error(`Unexpected request: ${url}`));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderPage();
+
+    expect(screen.getByText("四步打通 New API")).toBeInTheDocument();
+    expect(screen.getByText("安装并登录 routerctl")).toBeInTheDocument();
+    expect(screen.getByText("Router 自动生成 bridge upstream，供 New API channel 使用")).toBeInTheDocument();
+    expect(screen.getByText("在 New API 创建 token，然后调用 /v1")).toBeInTheDocument();
+  });
+
   it("renders cc-switch command guidance for Claude Code", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {

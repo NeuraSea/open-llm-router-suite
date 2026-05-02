@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bot, CheckCircle2, ChevronDown, Link2, Search, Sparkles, TerminalSquare } from "lucide-react";
+import { Bot, CheckCircle2, ChevronDown, KeyRound, Link2, Network, Search, Sparkles, TerminalSquare } from "lucide-react";
 
 import { CodePanel } from "@/components/code-panel";
 import { Badge } from "@/components/ui/badge";
@@ -105,6 +105,7 @@ export function PortalPage(props: { session?: UiSession; config?: UiConfig }) {
   const claudeSwitchCommand = `cc-switch claude --model ${claudeModel}`;
   const codexSwitchCommand = `cc-switch codex --model ${codexModel}`;
   const codexBindCommand = "routerctl codex bind";
+  const newApiBase = context.config.router_public_base_url.replace(/\/$/, "");
 
   return (
     <div className="space-y-6">
@@ -114,10 +115,10 @@ export function PortalPage(props: { session?: UiSession; config?: UiConfig }) {
             <Badge>Developer Access Portal</Badge>
             <div className="space-y-4">
               <h2 className="max-w-3xl text-4xl font-bold tracking-tight text-foreground md:text-5xl">
-                安装 routerctl，绑定上游账号，然后用 cc-switch 启动客户端。
+                安装 routerctl，绑定 OAuth，然后接入 New API。
               </h2>
               <p className="max-w-3xl text-base leading-8 text-muted-foreground">
-                routerctl 只负责登录和绑定；模型切换/客户端启动交给 cc-switch。
+                routerctl 负责登录和导入 Codex/Claude OAuth 凭证；Router 负责桥接上游会话，New API 负责 token、channel 和 /v1 调用入口。
               </p>
             </div>
           </div>
@@ -135,6 +136,26 @@ export function PortalPage(props: { session?: UiSession; config?: UiConfig }) {
                 </div>
               ))}
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="space-y-5 p-6">
+          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div className="space-y-1">
+              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                New API handoff
+              </div>
+              <h3 className="text-xl font-semibold text-foreground">四步打通 New API</h3>
+            </div>
+            <div className="font-mono text-xs text-muted-foreground">{newApiBase}</div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-4">
+            <FlowItem icon={TerminalSquare} label="01" title="安装并登录 routerctl" />
+            <FlowItem icon={Link2} label="02" title="绑定 Codex/Claude OAuth 凭证" />
+            <FlowItem icon={Network} label="03" title="Router 自动生成 bridge upstream，供 New API channel 使用" />
+            <FlowItem icon={KeyRound} label="04" title="在 New API 创建 token，然后调用 /v1" />
           </div>
         </CardContent>
       </Card>
@@ -206,7 +227,13 @@ export function PortalPage(props: { session?: UiSession; config?: UiConfig }) {
             ) : null}
 
             <div className="space-y-3">
-              <div className="text-sm font-semibold text-foreground">我的上游绑定</div>
+              <div className="space-y-1">
+                <div className="text-sm font-semibold text-foreground">我的上游绑定</div>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  私有绑定只供本人路由；共享到企业池后，New API channel sync 会把对应 Router bridge 挂成可治理的上游。
+                  如果绑定成功但 New API 看不到 channel，请让管理员检查同步任务或调用管理员同步端点。
+                </p>
+              </div>
               {upstreamCredentials.length ? (
                 <div className="space-y-3">
                   {upstreamCredentials.map((credential) => (
@@ -368,8 +395,9 @@ export function PortalPage(props: { session?: UiSession; config?: UiConfig }) {
             <ol className="space-y-3">
               <li>1. 在本机执行 Step 1 的安装命令，完成 routerctl 安装与首次登录。</li>
               <li>2. 如需 Codex OAuth 上游，执行 `routerctl codex bind`。</li>
-              <li>3. 用 `cc-switch` 选择模型并启动 Claude Code 或 Codex，走企业 Router。</li>
-              <li>4. 本机原有的 Claude Code 配置和 API Key 不受影响。</li>
+              <li>3. 如需 Claude Max 上游，执行 `routerctl claude bind`。</li>
+              <li>4. 在 New API 创建 token，通过 /v1 调用已同步的 Codex/Claude channel。</li>
+              <li>5. 用 `cc-switch` 选择模型并启动 Claude Code 或 Codex，走企业 Router。</li>
             </ol>
             <Separator />
             <p className="font-mono text-xs text-muted-foreground">{context.config.router_public_base_url}</p>
@@ -402,6 +430,26 @@ export function PortalPage(props: { session?: UiSession; config?: UiConfig }) {
           </div>
         </StepCard>
       </div>
+    </div>
+  );
+}
+
+function FlowItem({
+  icon: Icon,
+  label,
+  title,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  label: string;
+  title: string;
+}) {
+  return (
+    <div className="rounded-md border border-border bg-secondary/30 p-4">
+      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        <Icon className="h-4 w-4" />
+        <span>{label}</span>
+      </div>
+      <div className="mt-3 text-sm font-medium leading-6 text-foreground">{title}</div>
     </div>
   );
 }
